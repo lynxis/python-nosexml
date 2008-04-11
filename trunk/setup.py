@@ -15,9 +15,10 @@ setup(
     author='Paul Davis',
     author_email = 'davisp@neb.com',
     description = 'Format nosetests output in xml',
+    url = "http://code.google.com/p/python-nosexml/",
+    download_url = "http://python-nosexml.googlecode.com/svn/trunk/#egg=nosexml-dev",
     license = 'GNU LGPL',
     packages = ['nosexml'],
-    install_requires = "nose >= 0.10.0",
     entry_points = {
         'nose.plugins.0.10': [
             'nose-xml = nosexml:NoseXML'
