@@ -1,3 +1,9 @@
+"""
+Copyright (c) 2008 Paul Davis <paul.joseph.davis@gmail.com>
+
+This file is part of nosexml, which is released under the MIT license.
+"""
+
 import sys
 import unittest
 
@@ -75,7 +81,7 @@ class TestPostConfiguredNoseXML(unittest.TestCase):
     def test_set_output(self):
         strm = 1
         ret = self.pi.setOutputStream( strm )
-        self.assertEqual( self.pi.formatter.stream, 1 )
+        self.assertEqual( self.pi.old_stream, 1 )
         self.assertEqual( ret.__class__, NullRedirect )
 
 class UnitTest(object):
@@ -87,15 +93,15 @@ class TestFormatter(PrettyPrintFormatter):
 
 class TestStreamSetNoseXML(unittest.TestCase):
     def setUp(self):
+        self.buffer = StringIO()
         self.pi = NoseXML()
+        self.pi.sys.stdout = self.buffer
         class Foo(object):
             pass
         opts = Foo()
         opts.xml_enabled = True
         opts.xml_formatter = 'test.plugin_test.TestFormatter'
         self.pi.configure( opts, {} )
-        self.buffer = StringIO()
-        self.pi.setOutputStream( self.buffer )
 
     def test_other_formatter_class(self):
         self.assertEqual( self.pi.formatter.__class__, TestFormatter )
@@ -110,7 +116,8 @@ class TestStreamSetNoseXML(unittest.TestCase):
         self.assertEqual( self.pi.stdout, [] )
         self.assertEqual( sys.stdout, curr_stdout )
         self.assertEqual( self.buffer.getvalue(), '<?xml version="1.0" encoding="UTF-8"?>\n' \
-                                                    '<nosetests>\n</nosetests>\n' )
+                                                    '<nosetests>\n    <reports />\n' \
+                                                    '    <results ran="0" failures="0" errors="0" />\n</nosetests>\n' )
 
     def test_finalize_wo_begin(self):
         self.pi.finalize( '' )
@@ -142,10 +149,10 @@ class TestStreamSetNoseXML(unittest.TestCase):
         try:
             raise ValueError()
         except:
-            self.pi.addError( UnitTest(), sys.exc_info() )
+            self.pi.handleError( UnitTest(), sys.exc_info() )
 
     def test_add_failure(self):
         try:
             raise AssertionError()
         except:
-            self.pi.addFailure( UnitTest(), sys.exc_info() )
+            self.pi.handleFailure( UnitTest(), sys.exc_info() )

@@ -1,3 +1,9 @@
+"""
+Copyright (c) 2008 Paul Davis <paul.joseph.davis@gmail.com>
+
+This file is part of nosexml, which is released under the MIT license.
+"""
+
 from formatter import XMLFormatter
 
 class PrettyPrintFormatter(XMLFormatter):
@@ -25,6 +31,7 @@ class PrettyPrintFormatter(XMLFormatter):
         self.stream.write( "</nosetests>\n" )
 
     def startElement(self,name,attrs={}):
+        self._writeElement()
         self.depth += 1
         self.current = ( name, self._attrs( attrs ) )
 
@@ -33,19 +40,21 @@ class PrettyPrintFormatter(XMLFormatter):
         self.depth -= 1
 
     def characters(self,content):
+        if len( content.strip() ) == 0:
+            return
         self._writeElement()
         cnt = content.replace( '&', '&amp;' ).replace( '<', '&lt;' ).replace( '>', '&gt;' ).rstrip()
         if cnt[-1:] != '\n':
             cnt = '%s\n' % cnt
         self.stream.write( '%s%s' % ( self.indent * ( self.depth + 1 ), cnt ) )
 
-    def _writeElement(self,end=None):
-        if self.current and end and self.current[0] == end:
+    def _writeElement(self,ending=None):
+        if self.current and self.current[0] == ending:
             self.stream.write( "%s<%s%s />\n" % ( self.indent * self.depth, self.current[0], self.current[1] ) )
         elif self.current:
             self.stream.write( "%s<%s%s>\n" % ( self.indent * self.depth, self.current[0], self.current[1] ) )
-        elif end:
-            self.stream.write( "%s</%s>\n" % ( self.indent * self.depth, end ) )
+        elif ending:
+            self.stream.write( "%s</%s>\n" % ( self.indent * self.depth, ending ) )
         self.current = None
 
     def _attrs(self,args={}):
