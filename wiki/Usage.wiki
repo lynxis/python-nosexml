@@ -1,0 +1,12 @@
+#summary Usage info
+
+= Installation =
+
+{{{
+$ easy_install nosexml
+}}}
+
+= Command line options =
+
+|| --xml || Enable the plugin. Defaults to disabled ||
+|| --xml-formatter=XML_FORMATTER || Provide the plugin with the class name that should format the output. Defaults to nosexml.PrettyPrintFormatter ||
