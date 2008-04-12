@@ -1,4 +1,5 @@
 #summary Using the TextMateFormatter
+#labels Featured
 
 = !TextMate Setup =
 
