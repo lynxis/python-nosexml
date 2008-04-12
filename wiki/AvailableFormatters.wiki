@@ -1,0 +1,6 @@
+#summary List of available formatters
+
+=Formatter Classes=
+
+  * PrettyPrintFormatter
+  * TextMateFormatter
