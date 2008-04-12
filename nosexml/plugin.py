@@ -1,4 +1,8 @@
 """A plugin for nosetests to write output in XML
+
+Copyright (c) 2008 Paul Davis <paul.joseph.davis@gmail.com>
+
+This file is part of nosexml, which is released under the MIT license.
 """
 
 import logging
@@ -15,12 +19,15 @@ log = logging.getLogger( __name__ )
 class NullRedirect(object):
     """Redirects all other output into the ether.
     """
+    def __init__(self):
+        self.buf = StringIO()
     def write(self,mesg):
-        pass
+        self.buf.write( mesg )
     def writeln(self,*args):
-        pass
-
-
+        if len( args ) > 0:
+            self.buf.write( '%s\n' % args )
+        else:
+            self.buf.write( '\n' )
 
 class NoseXML(Plugin):
     """Write Nosetests output in XML
@@ -46,7 +53,7 @@ class NoseXML(Plugin):
     """
     name = 'nose-xml'
     enabled = False
-    score = 1000 #Make us trump the capture plugin.
+    score = 499 #Just trump the capture plugin.
     
     def __init__(self):
         self.stringio = StringIO
@@ -54,6 +61,9 @@ class NoseXML(Plugin):
         self.stdout = []
         self.redirect = NullRedirect()
         self.buffer = None
+        self.ran = 0
+        self.errors = 0
+        self.failures = 0
     
     def options(self,parser,env=os.environ):
         parser.add_option( '--xml', dest='xml_enabled', default=False,
@@ -76,19 +86,33 @@ class NoseXML(Plugin):
             self.formatter = self.cls_inst( self.sys.stdout )
 
     def setOutputStream(self,stream):
-        self.formatter.setStream( stream )
+        self.old_stream = stream
         return self.redirect
+
+    def prepareTestResult(self,result):
+        #Monkey patch the TextTestResult to not print
+        #it's summary.
+        result.dots = False
+        def _mpPrintSummary(start,stop):
+            pass
+        result.printSummary = _mpPrintSummary
 
     def begin(self):
         self._start()
         self.formatter.startDocument()
 
     def finalize(self,result):
+        self.formatter.startElement( 'reports', attrs={} )
+        self.formatter.characters( self._escape( self.redirect.buf.getvalue() ) )
+        self.formatter.endElement( 'reports' )
+        self.formatter.startElement( 'results', attrs={ 'ran': self.ran, 'errors': self.errors, 'failures': self.failures } )
+        self.formatter.endElement( 'results' )
         self.formatter.endDocument()
         while self.stdout:
             self._end()
 
     def beforeTest(self,test):
+        self.ran += 1
         self._start()
 
     def afterTest(self,test):
@@ -99,17 +123,21 @@ class NoseXML(Plugin):
         self._writeCaptured()
         self.formatter.endElement( 'test' )
 
-    def addError(self,test,err):
+    def handleError(self,test,err):
+        self.errors += 1
         self.formatter.startElement( 'test', { 'id': test.id(), 'status': 'error' } )
         self._writeTraceback( err )
         self._writeCaptured()
         self.formatter.endElement( 'test' )
+        return True
         
-    def addFailure(self,test,err):
+    def handleFailure(self,test,err):
+        self.failures += 1
         self.formatter.startElement( 'test', { 'id': test.id(), 'status': 'failure' } )
         self._writeTraceback( err )
         self._writeCaptured()
         self.formatter.endElement( 'test' )
+        return True
 
     def _start(self):
         self.stdout.append( self.sys.stdout )
@@ -122,18 +150,31 @@ class NoseXML(Plugin):
 
     def _writeCaptured(self):
         if self.buffer is not None and self.buffer.getvalue().strip():
-            self.formatter.startElement( 'captured' )
-            self.formatter.characters( self.buffer.getvalue() )
+            self.formatter.startElement( 'captured', attrs={} )
+            captured = self._escape( self.buffer.getvalue() )
+            self.formatter.characters( captured )
             self.formatter.endElement( 'captured' )
             self.captured  = None
 
     def _writeTraceback(self,exc_info):
         import traceback
         for ( fname, line, func, text ) in traceback.extract_tb( exc_info[2] ):
-            self.formatter.startElement( 'frame', { 'file': fname, 'line': str(line), 'function': str(func) } )
-            self.formatter.characters( text )
+            fname = self._escape( fname )
+            line = self._escape( line )
+            func = self._escape( func )
+            text = self._escape( text )
+            self.formatter.startElement( 'frame', { 'file': fname, 'line': line, 'function': func, 'text': text } )
             self.formatter.endElement( 'frame' )
         etype = ''.join( [ f.strip() for f in traceback.format_exception_only( exc_info[0], '' ) ] )
+        etype = self._escape( etype )
+        cause = self._escape( exc_info[1] )
         self.formatter.startElement('cause', { 'type': etype } )
-        self.formatter.characters( str( exc_info[1] ) )
+        self.formatter.characters( cause )
         self.formatter.endElement( 'cause' )
+        
+    def _escape(self,data):
+        ret = str( data )
+        return ret.replace( '&', '&amp;' ).replace( '<', '&lt;' ).replace( '>', '&gt;' )
+
+
+
