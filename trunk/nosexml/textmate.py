@@ -134,7 +134,7 @@ html = {
                         </li>
 """,
 
-'start_cause': """<li><pre>""",
+'start_cause': """<li><pre>%(type)s: """,
 
 'end_cause': """</pre></li>""",
 

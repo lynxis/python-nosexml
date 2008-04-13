@@ -17,7 +17,7 @@ setup(
     description = 'Format nosetests output in xml',
     url = "http://code.google.com/p/python-nosexml/",
     download_url = "http://python-nosexml.googlecode.com/svn/trunk/#egg=nosexml-dev",
-    license = 'GNU LGPL',
+    license = 'MIT',
     packages = ['nosexml'],
     entry_points = {
         'nose.plugins.0.10': [
