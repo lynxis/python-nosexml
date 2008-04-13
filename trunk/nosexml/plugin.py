@@ -7,14 +7,15 @@ This file is part of nosexml, which is released under the MIT license.
 
 import logging
 import os
+import re
 import sys
+import unittest
 
 from cStringIO import StringIO
 
-from nose.plugins.base import Plugin
+import nose
 
 log = logging.getLogger( __name__ )
-
 
 class NullRedirect(object):
     """Redirects all other output into the ether.
@@ -29,7 +30,7 @@ class NullRedirect(object):
         else:
             self.buf.write( '\n' )
 
-class NoseXML(Plugin):
+class NoseXML(nose.plugins.base.Plugin):
     """Write Nosetests output in XML
     
         This version of the XML plugin is based on issue140_ on the nosetests
@@ -64,6 +65,13 @@ class NoseXML(Plugin):
         self.ran = 0
         self.errors = 0
         self.failures = 0
+        self.escapes = [
+            ( re.compile( r'&' ), '&amp;' ),
+            ( re.compile( r'"' ), '&quot;' ),
+            ( re.compile( r"'" ), '&apos;' ),
+            ( re.compile( r'<' ), '&lt;' ),
+            ( re.compile( r'>' ), '&gt;' )
+        ]
     
     def options(self,parser,env=os.environ):
         parser.add_option( '--xml', dest='xml_enabled', default=False,
@@ -119,13 +127,13 @@ class NoseXML(Plugin):
         self._end()
 
     def addSuccess(self,test):
-        self.formatter.startElement( 'test', { 'id': test.id(), 'status': 'success' } )
+        self.formatter.startElement( 'test', { 'id': self._id( test ), 'status': 'success' } )
         self._writeCaptured()
         self.formatter.endElement( 'test' )
 
     def handleError(self,test,err):
         self.errors += 1
-        self.formatter.startElement( 'test', { 'id': test.id(), 'status': 'error' } )
+        self.formatter.startElement( 'test', { 'id': self._id( test ), 'status': 'error' } )
         self._writeTraceback( err )
         self._writeCaptured()
         self.formatter.endElement( 'test' )
@@ -133,7 +141,7 @@ class NoseXML(Plugin):
         
     def handleFailure(self,test,err):
         self.failures += 1
-        self.formatter.startElement( 'test', { 'id': test.id(), 'status': 'failure' } )
+        self.formatter.startElement( 'test', { 'id': self._id( test ), 'status': 'failure' } )
         self._writeTraceback( err )
         self._writeCaptured()
         self.formatter.endElement( 'test' )
@@ -171,10 +179,21 @@ class NoseXML(Plugin):
         self.formatter.startElement('cause', { 'type': etype } )
         self.formatter.characters( cause )
         self.formatter.endElement( 'cause' )
+
+    def _id(self,test):
+        try:
+            return self._escape( test.id() )
+        except:
+            pass
+        if isinstance( test, nose.suite.ContextSuite ):
+            return self._escape( 'nose.suite.ContextSuite(%s)' % test.context or 'Unknown' )
+        log.warning( "Uknown class: %s.%s" % ( test.__class__.__module__, test.__class__.__name__ ) )
+        return self._escape( test )
         
     def _escape(self,data):
         ret = str( data )
-        return ret.replace( '&', '&amp;' ).replace( '<', '&lt;' ).replace( '>', '&gt;' )
-
+        for e in self.escapes:
+            ret = e[0].sub( e[1], ret )
+        return ret
 
 
