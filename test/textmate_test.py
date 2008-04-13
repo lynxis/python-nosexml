@@ -28,7 +28,7 @@ class TestTextMateFormatter(unittest.TestCase):
         tm.startElement( 'frame', attrs={ 'file': 'bar.py', 'line': '20', 'function': 'bar', 'text': 'foo' } )
         tm.characters( "Next frame's data" )
         tm.endElement( 'frame' )
-        tm.startElement( 'cause', attrs={} )
+        tm.startElement( 'cause', attrs={ 'type': 'ValueError' } )
         tm.characters( 'Cause here' )
         tm.endElement( 'cause' )
         tm.endElement('test')
