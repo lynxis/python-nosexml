@@ -55,6 +55,7 @@ class TestPreConfiguredNoseXML(unittest.TestCase):
         opts = Foo()
         opts.xml_enabled = True
         opts.xml_formatter = 'nosexml.PrettyPrintFormatter'
+        opts.xml_capture_stderr = True
         self.pi.configure( opts, {} )
         self.assertEqual( self.pi.enabled, True )
         self.assertEqual( self.pi.formatter.__class__, PrettyPrintFormatter )
@@ -76,6 +77,7 @@ class TestPostConfiguredNoseXML(unittest.TestCase):
         opts = Foo()
         opts.xml_enabled = True
         opts.xml_formatter = 'nosexml.PrettyPrintFormatter'
+        opts.xml_capture_stderr = True
         self.pi.configure( opts, {} )
 
     def test_set_output(self):
@@ -101,6 +103,7 @@ class TestStreamSetNoseXML(unittest.TestCase):
         opts = Foo()
         opts.xml_enabled = True
         opts.xml_formatter = 'test.plugin_test.TestFormatter'
+        opts.xml_capture_stderr = True
         self.pi.configure( opts, {} )
 
     def test_other_formatter_class(self):
