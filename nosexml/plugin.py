@@ -51,6 +51,10 @@ class NoseXML(nose.plugins.base.Plugin):
         --xml-formatter=XML_FORMATTER   Provide a class to format the XML
                                         SAX events into the desired format.
                                         Defaults to nosexml.PrettyPrintFormatter.
+        --xml-no-stderr                 Disable capturing of stderr. This can be
+                                        extremely useful when an error is causing
+                                        the system to exit without displaying an
+                                        exception traceback.
     """
     name = 'nose-xml'
     enabled = False
@@ -59,6 +63,7 @@ class NoseXML(nose.plugins.base.Plugin):
     def __init__(self):
         # Keep original stderr around for debugging
         sys.debug = sys.stderr
+        self.capture_stderr = True
         self.stringio = StringIO
         self.sys = sys
         self.stdout = []
@@ -85,9 +90,15 @@ class NoseXML(nose.plugins.base.Plugin):
             help="Class that will process the xml document for output." \
                     " The default is to use nosexml.PrettyPrintFormatter" \
                     " which will write the xml document as plain text." )
+        parser.add_option('--xml-no-stderr', dest='xml_capture_stderr', default=True,
+            action="store_false",
+            help="Disable capturing of stderr output." \
+                    " This is especially useful when things are dieing without" \
+                    " displaying an exception traceback.")
 
     def configure(self,options,conf):
         self.enabled = options.xml_enabled
+        self.capture_stderr = options.xml_capture_stderr
         if not self.enabled or not options.xml_formatter:
             self.enabled = False
             self.formatter = None
@@ -154,9 +165,10 @@ class NoseXML(nose.plugins.base.Plugin):
 
     def _start(self):
         self.stdout.append(self.sys.stdout)
-        self.stderr.append(self.sys.stderr)
         self.outbuf = self.sys.stdout = self.stringio()
-        self.errbuf = self.sys.stderr = self.stringio()
+        if self.capture_stderr:
+            self.stderr.append(self.sys.stderr)
+            self.errbuf = self.sys.stderr = self.stringio()
 
     def _end(self):
         if self.stdout:
@@ -170,7 +182,7 @@ class NoseXML(nose.plugins.base.Plugin):
             self.formatter.characters(self._escape(self.outbuf.getvalue()))
             self.formatter.endElement('stdout')
             self.outbuf = None
-        if self.errbuf and self.errbuf.getvalue().strip():
+        if self.capture_stderr and self.errbuf and self.errbuf.getvalue().strip():
             self.formatter.startElement('stderr', attrs={})
             self.formatter.characters(self._escape(self.errbuf.getvalue()))
             self.formatter.endElement('stderr')
