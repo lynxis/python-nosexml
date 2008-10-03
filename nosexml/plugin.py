@@ -57,11 +57,15 @@ class NoseXML(nose.plugins.base.Plugin):
     score = 499 #Just trump the capture plugin.
     
     def __init__(self):
+        # Keep original stderr around for debugging
+        sys.debug = sys.stderr
         self.stringio = StringIO
         self.sys = sys
         self.stdout = []
+        self.outbuf = None
+        self.stderr = []
+        self.errbuf = None
         self.redirect = NullRedirect()
-        self.buffer = None
         self.ran = 0
         self.errors = 0
         self.failures = 0
@@ -113,6 +117,7 @@ class NoseXML(nose.plugins.base.Plugin):
         self.formatter.startElement( 'reports', attrs={} )
         self.formatter.characters( self._escape( self.redirect.buf.getvalue() ) )
         self.formatter.endElement( 'reports' )
+        self._writeCaptured()
         self.formatter.startElement( 'results', attrs={ 'ran': self.ran, 'errors': self.errors, 'failures': self.failures } )
         self.formatter.endElement( 'results' )
         self.formatter.endDocument()
@@ -144,28 +149,36 @@ class NoseXML(nose.plugins.base.Plugin):
         self.formatter.startElement( 'test', { 'id': self._id( test ), 'status': 'failure' } )
         self._writeTraceback( err )
         self._writeCaptured()
-        self.formatter.endElement( 'test' )
+        self.formatter.endElement('test')
         return True
 
     def _start(self):
-        self.stdout.append( self.sys.stdout )
-        self.buffer = self.stringio()
-        self.sys.stdout = self.buffer
+        self.stdout.append(self.sys.stdout)
+        self.stderr.append(self.sys.stderr)
+        self.outbuf = self.sys.stdout = self.stringio()
+        self.errbuf = self.sys.stderr = self.stringio()
 
     def _end(self):
         if self.stdout:
             self.sys.stdout = self.stdout.pop()
+        if self.stderr:
+            self.sys.stderr = self.stderr.pop()
 
     def _writeCaptured(self):
-        if self.buffer is not None and self.buffer.getvalue().strip():
-            self.formatter.startElement( 'captured', attrs={} )
-            captured = self._escape( self.buffer.getvalue() )
-            self.formatter.characters( captured )
-            self.formatter.endElement( 'captured' )
-            self.captured  = None
+        if self.outbuf and self.outbuf.getvalue().strip():
+            self.formatter.startElement('stdout', attrs={})
+            self.formatter.characters(self._escape(self.outbuf.getvalue()))
+            self.formatter.endElement('stdout')
+            self.outbuf = None
+        if self.errbuf and self.errbuf.getvalue().strip():
+            self.formatter.startElement('stderr', attrs={})
+            self.formatter.characters(self._escape(self.errbuf.getvalue()))
+            self.formatter.endElement('stderr')
+            self.errbuf = None
 
     def _writeTraceback(self,exc_info):
         import traceback
+        self.formatter.startElement('traceback', attrs={})
         for ( fname, line, func, text ) in traceback.extract_tb( exc_info[2] ):
             fname = self._escape( fname )
             line = self._escape( line )
@@ -179,6 +192,7 @@ class NoseXML(nose.plugins.base.Plugin):
         self.formatter.startElement('cause', { 'type': etype } )
         self.formatter.characters( cause )
         self.formatter.endElement( 'cause' )
+        self.formatter.endElement('traceback')
 
     def _id(self,test):
         try:
@@ -195,5 +209,3 @@ class NoseXML(nose.plugins.base.Plugin):
         for e in self.escapes:
             ret = e[0].sub( e[1], ret )
         return ret
-
-

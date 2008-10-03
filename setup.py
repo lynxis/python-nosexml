@@ -1,5 +1,5 @@
-"""setup.py for nosexml
-
+"""
+setup.py for nosexml
 """
 try:
     import ez_setup

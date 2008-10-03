@@ -35,7 +35,7 @@ class TestPreConfiguredNoseXML(unittest.TestCase):
         self.assertEqual( self.pi.sys, sys )
         self.assertEqual( self.pi.stdout, [] )
         self.assertEqual( self.pi.redirect.__class__, NullRedirect )
-        self.assertEqual( self.pi.buffer, None )
+        self.assertEqual( self.pi.outbuf, None )
         
     def test_option(self):
         parser = OptionParser()
@@ -93,9 +93,9 @@ class TestFormatter(PrettyPrintFormatter):
 
 class TestStreamSetNoseXML(unittest.TestCase):
     def setUp(self):
-        self.buffer = StringIO()
+        self.outbuf = StringIO()
         self.pi = NoseXML()
-        self.pi.sys.stdout = self.buffer
+        self.pi.sys.stdout = self.outbuf
         class Foo(object):
             pass
         opts = Foo()
@@ -111,13 +111,16 @@ class TestStreamSetNoseXML(unittest.TestCase):
         self.pi.begin()
         self.assertNotEqual( sys.stdout, curr_stdout )
         self.assertEqual( self.pi.stdout, [ curr_stdout ] )
-        self.assertEqual( self.pi.buffer, sys.stdout )
+        self.assertEqual( self.pi.outbuf, sys.stdout )
         self.pi.finalize( '' )
         self.assertEqual( self.pi.stdout, [] )
         self.assertEqual( sys.stdout, curr_stdout )
-        self.assertEqual( self.buffer.getvalue(), '<?xml version="1.0" encoding="UTF-8"?>\n' \
-                                                    '<nosetests>\n    <reports />\n' \
-                                                    '    <results ran="0" failures="0" errors="0" />\n</nosetests>\n' )
+        self.assertEqual( self.outbuf.getvalue(),
+            '<?xml version="1.0" encoding="UTF-8"?>\n' \
+            '<nosetests>\n' \
+            '    <reports />\n' \
+            '    <results ran="0" failures="0" errors="0" />\n' \
+            '</nosetests>\n')
 
     def test_finalize_wo_begin(self):
         self.pi.finalize( '' )
@@ -126,24 +129,36 @@ class TestStreamSetNoseXML(unittest.TestCase):
         self.pi.beforeTest(None)
         print "hi mom"
         self.pi.afterTest(None)
-        self.assertEqual( self.pi.buffer.getvalue(), "hi mom\n" )
+        self.assertEqual( self.pi.outbuf.getvalue(), "hi mom\n" )
 
     def test_add_success(self):
         self.pi.addSuccess( UnitTest() )
-        self.assertEqual( self.buffer.getvalue(),
+        self.assertEqual( self.outbuf.getvalue(),
             '    <test status="success" id="test.class_name" />\n' )
 
-    #Below here I don't test other than the implicit "doesn't throw"
-    #In the future I'll have to come back through with an xml parser
-    #or fill out the TestFormatter with event expectation stuff.
-    def test_success_with_captured(self):
+    def test_capture(self):
         self.pi.begin()
         t = UnitTest()
-        self.pi.beforeTest( t )
-        print "Hi!"
-        self.pi.afterTest( t )
-        self.pi.addSuccess( t )
-        self.pi.finalize( '' )
+        self.pi.beforeTest(t)
+        print "foo"
+        sys.stderr.write("bar")
+        self.pi.afterTest(t)
+        self.pi.addSuccess(t)
+        self.pi.finalize('')
+        self.assertEqual(self.outbuf.getvalue(),
+            '<?xml version="1.0" encoding="UTF-8"?>\n' \
+            '<nosetests>\n' \
+            '    <test status="success" id="test.class_name">\n' \
+            '        <stdout>\n' \
+            '            foo\n' \
+            '        </stdout>\n'
+            '        <stderr>\n' \
+            '            bar\n'
+            '        </stderr>\n'
+            '    </test>\n'
+            '    <reports />\n' \
+            '    <results ran="1" failures="0" errors="0" />\n' \
+            '</nosetests>\n')
 
     def test_add_error(self):
         try:
@@ -156,3 +171,9 @@ class TestStreamSetNoseXML(unittest.TestCase):
             raise AssertionError()
         except:
             self.pi.handleFailure( UnitTest(), sys.exc_info() )
+
+class TestCapture(unittest.TestCase):
+    def test_capture(self):
+        print "Using print"
+        sys.stdout.write("Via sys.stdout.write\n")
+        sys.stderr.write("sys.stderr.write works\n")
