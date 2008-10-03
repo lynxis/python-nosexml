@@ -11,7 +11,7 @@ from setuptools import setup
 
 setup(
     name='nosexml',
-    version='0.1',
+    version='0.2',
     author='Paul Davis',
     author_email = 'davisp@neb.com',
     description = 'Format nosetests output in xml',
