@@ -42,7 +42,7 @@ class TextMateFormatter(XMLFormatter):
                 <a href="javascript:toggle( '%(id)s', 'show' )" id="%(id)s_s">&#x25B6;</a>
                 <a href="javascript:toggle( '%(id)s', 'hide' )" id="%(id)s_h" style="display: none;">&#x25BC;</a>
                 <h2>%(id)s</h2>
-                <div id="%(id)s" class="content" style="display: none;">
+                <div id="%(id)s" class="content">
         """
         self.stream.write(html % attrs)
     
@@ -163,6 +163,11 @@ HTML_HEADER = """
             ul li.success h2
             {
                 color: green ;
+            }
+
+            ul li.success .content
+            {
+                display: none ;
             }
 
             ul li.error h2
